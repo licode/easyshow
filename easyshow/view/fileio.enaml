@@ -1,0 +1,102 @@
+# ######################################################################
+# Copyright (c) 2015, Brookhaven Science Associates, Brookhaven        #
+# National Laboratory. All rights reserved.                            #
+#                                                                      #
+# Redistribution and use in source and binary forms, with or without   #
+# modification, are permitted provided that the following conditions   #
+# are met:                                                             #
+#                                                                      #
+# * Redistributions of source code must retain the above copyright     #
+#   notice, this list of conditions and the following disclaimer.      #
+#                                                                      #
+# * Redistributions in binary form must reproduce the above copyright  #
+#   notice this list of conditions and the following disclaimer in     #
+#   the documentation and/or other materials provided with the         #
+#   distribution.                                                      #
+#                                                                      #
+# * Neither the name of the Brookhaven Science Associates, Brookhaven  #
+#   National Laboratory nor the names of its contributors may be used  #
+#   to endorse or promote products derived from this software without  #
+#   specific prior written permission.                                 #
+#                                                                      #
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS  #
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT    #
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS    #
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE       #
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,           #
+# INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES   #
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR   #
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)   #
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,  #
+# STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OTHERWISE) ARISING   #
+# IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE   #
+# POSSIBILITY OF SUCH DAMAGE.                                          #
+########################################################################
+from __future__ import absolute_import
+__author__ = 'Li Li'
+
+from enaml.widgets.api import (Container, PushButton, Label,
+                               Form, Field, FileDialogEx, DockItem,
+                               DockArea, CheckBox, ComboBox, RadioButton,
+                               ScrollArea, Window, GroupBox)
+from enaml.layout.api import hbox, vbox, HSplitLayout, VSplitLayout, spacer, grid
+from enaml.core.api import Include, Looper
+from enaml.layout.geometry import Box
+from enaml.stdlib.fields import FloatField
+from enaml.stdlib.fields import IntField as DefaultIntField
+
+import numpy as np
+
+try:
+    import databroker
+except ImportError:
+    databroker = None
+
+enamldef IntField(DefaultIntField):
+    submit_triggers = ['auto_sync'] #['return_pressed']
+
+
+enamldef FileView(DockItem): file_view:
+    attr io_model
+
+    Container:
+        Container:
+            constraints = [
+                vbox(
+                    hbox(folder_btn, spacer),
+                    hbox(folder_fd),
+                    hbox(files_btn, files_load),
+                    #hbox(gb_db),
+                    scroller,
+                    #hbox(plot_bt, spacer),
+                ),
+                folder_btn.width == files_btn.width,
+                files_btn.height == files_load.height,
+            ]
+            PushButton: folder_btn:
+                text = "Working Directory"
+                clicked ::
+                    path = FileDialogEx.get_existing_directory(file_view)
+                    if path:
+                        io_model.working_directory = path
+            Field: folder_fd:
+                text := io_model.working_directory
+                #maximum_size = 400
+
+            PushButton: files_btn:
+                text = "Exp. Data File"
+                clicked ::
+                    path = FileDialogEx.get_open_file_names(file_view, current_path=io_model.working_directory)
+                    if path:
+                        # load multiple files
+                        io_model.file_names = [item.split('/')[-1] for item in path]
+
+            Label: files_load:
+                text = 'No data is loaded.'
+
+            ScrollArea: scroller:
+                Container:
+                    Looper: looper:
+                        iterable << io_model.file_names
+                        Label: lb1:
+                            text = loop_item

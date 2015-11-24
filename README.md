@@ -1,2 +1,2 @@
 # easyshow
-Simple gui for 1D/2D plotting at beamlines of NSLSII.
+Simple GUI of 1D/2D plotting for data analysis at NSLSII.
