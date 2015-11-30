@@ -82,45 +82,36 @@ class FileIOModel(Atom):
         Dict of 2D arrays, such as 2D roi pv or fitted data
     """
     working_directory = Str()
-    #output_directory = Str()
     file_names = List()
+    file_name = Str()
     file_path = Str()
     load_status = Str()
-    data_sets = Typed(OrderedDict)
+    data_sets = Typed(object)
+    data_status = Dict()
+    data_list = List()
     img_dict = Dict()
 
     file_channel_list = List()
-
     runid = Int(-1)
     h_num = Int(1)
     v_num = Int(1)
     fname_from_db = Str()
 
-    file_opt = Int()
-    data = Typed(np.ndarray)
-    data_all = Typed(np.ndarray)
-    selected_file_name = Str()
-    file_name = Str()
-
     def __init__(self, **kwargs):
         self.working_directory = kwargs['working_directory']
-        #self.output_directory = kwargs['output_directory']
-        #with self.suppress_notifications():
-        #    self.working_directory = working_directory
-
-    # @observe('working_directory')
-    # def working_directory_changed(self, changed):
-    #     # make sure that the output directory stays in sync with working
-    #     # directory changes
-    #     self.output_directory = self.working_directory
 
     @observe('file_names')
     def update_more_data(self, change):
         self.file_channel_list = []
         #self.file_names.sort()
-        logger.info('Files are loaded: %s' % (self.file_names))
-
-        # focus on single file only for now
+        if change['type'] != 'create':
+            logger.info('Files are loaded: %s' % (self.file_names))
+            for fname in self.file_names:
+                fpath = os.path.join(self.working_directory, fname)
+                data_list = sorted(list(load_1d_data_keys(fpath)))
+                data_list = ['None'] + data_list
+                self.data_status[fname] = {v: False for v in data_list}
+                self.data_status[fname]['None'] = True
 
     @observe('runid')
     def _update_fname(self, change):
@@ -146,38 +137,34 @@ class FileIOModel(Atom):
                          datashape, config_file)
         self.file_names = [fname]
 
-    @observe('file_opt', 'mask_name', 'mask_opt')
+    @observe('file_name')
     def choose_file(self, change):
         # load mask data
-        if len(self.mask_name) > 0 and self.mask_opt is True:
-            mask_file = os.path.join(self.working_directory, self.mask_name)
-            try:
-                self.mask_data = np.load(mask_file)
-            except IOError:
-                self.mask_data = np.loadtxt(mask_file)
+        print(change)
+        if len(change['value']) != 0:
+            fpath = os.path.join(self.working_directory, self.file_name)
+            self.data_sets = load_1d_data(fpath)
+            self.data_list = ['None'] + sorted(list(self.data_sets.keys()))
+            #self.data_status[self.file_name] = {v: False for v in self.data_list}
 
-            for k in six.iterkeys(self.img_dict):
-                if 'fit' in k:
-                    self.img_dict[k][self.mask_name] = self.mask_data
-        else:
-            self.mask_data = None
 
-        if self.file_opt == 0:
-            return
+def load_1d_data(fpath):
+    """ Read data from file and output dataframe.
+    """
+    return pd.read_csv(fpath)
 
-        # selected file name from all channels
-        # controlled at top level gui.py startup
-        self.selected_file_name = self.file_channel_list[self.file_opt-1]
 
-        names = self.data_sets.keys()
+def load_1d_data_keys(fpath):
+    """ Read data keys only from input file.
 
-        # to be passed to fitting part for single pixel fitting
-        self.data_all = self.data_sets[names[self.file_opt-1]].raw_data
+    Parameters
+    ----------
+    fpath : str
+        input file path
 
-        # spectrum is averaged in terms of pixel size,
-        # fit doesn't work well if spectrum value is too large.
-
-        spectrum = self.data_sets[names[self.file_opt-1]].get_sum(mask=self.mask_data)
-        #self.data = spectrum/np.max(spectrum)
-        #self.data = spectrum/(self.data_all.shape[0]*self.data_all.shape[1])
-        self.data = spectrum
+    Returns
+    -------
+    pandas.core.index.Index
+    """
+    dframe = pd.read_csv(fpath)
+    return dframe.keys()

@@ -67,7 +67,8 @@ enamldef FileView(DockItem): file_view:
                     hbox(folder_fd),
                     hbox(files_btn, files_load),
                     #hbox(gb_db),
-                    scroller,
+                    scroller_fnames,
+                    scroller_items,
                     #hbox(plot_bt, spacer),
                 ),
                 folder_btn.width == files_btn.width,
@@ -94,9 +95,22 @@ enamldef FileView(DockItem): file_view:
             Label: files_load:
                 text = 'No data is loaded.'
 
-            ScrollArea: scroller:
-                Container:
+            ScrollArea: scroller_fnames:
+                Container: ct_rb:
                     Looper: looper:
                         iterable << io_model.file_names
-                        Label: lb1:
+                        RadioButton:
                             text = loop_item
+                            clicked ::
+                                if checked:
+                                    io_model.file_name = loop_item
+            ScrollArea: scroller_items:
+                Container:
+                    Looper: looper:
+                        iterable << io_model.data_list
+                        RadioButton:
+                            text = loop_item
+                            checked << io_model.data_status[io_model.file_name][loop_item] == True
+                            clicked ::
+                                if checked:
+                                    io_model.data_status[io_model.file_name][loop_item] = True
